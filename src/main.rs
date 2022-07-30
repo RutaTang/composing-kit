@@ -1,13 +1,21 @@
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{io, thread, time::Duration};
+use std::{
+    io::{self, Stdout},
+    sync::mpsc,
+    thread,
+    time::Duration,
+};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem},
     Frame, Terminal,
 };
 
@@ -29,7 +37,15 @@ fn ui<B: Backend>(f: &mut Frame<B>) {
     f.render_widget(menuinfoboard, menu[0]);
 
     let menuselectboard = Block::default().title("Menu Select").borders(Borders::ALL);
-    f.render_widget(menuselectboard, menu[1]);
+    let items = [ListItem::new("Circle of fifths")];
+    let list = List::new(items).block(menuselectboard);
+    f.render_widget(list, menu[1]);
+}
+
+#[derive(Debug)]
+enum InputEvent<I> {
+    Input(I),
+    Tick,
 }
 
 fn main() -> Result<(), io::Error> {
@@ -39,15 +55,32 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    terminal.draw(|f| {
-        ui(f);
-    })?;
+    let (tx, rx) = mpsc::channel();
 
+    //Use input event thread to listen key event and send to ui thread
+    thread::spawn(move || loop {
+        if (event::poll(Duration::from_millis(200)).unwrap()) {
+            let ev = event::read().unwrap();
+            match ev {
+                Event::Key(key) => {
+                    tx.send(InputEvent::Input(key)).unwrap();
+                }
+                _ => {}
+            }
+        } else {
+            tx.send(InputEvent::Tick).unwrap();
+        }
+    });
+
+    // ui thread 
     loop {
-        match event::read()? {
-            Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Char('q') => {
-                    // restore terminal
+        let input_event = rx.recv().unwrap();
+        match input_event {
+            InputEvent::Input(key) => match key {
+                KeyEvent {
+                    code: KeyCode::Char('q'),
+                    modifiers: KeyModifiers::CONTROL,
+                } => {
                     disable_raw_mode()?;
                     execute!(
                         terminal.backend_mut(),
@@ -59,8 +92,12 @@ fn main() -> Result<(), io::Error> {
                 }
                 _ => {}
             },
-            _ => {}
+            InputEvent::Tick => {}
         }
+        terminal.draw(|f| {
+            ui(f);
+        })?;
     }
+
     Ok(())
 }
