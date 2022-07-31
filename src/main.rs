@@ -14,12 +14,12 @@ use std::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem},
+    style::{Color, Modifier, Style, self},
+    widgets::{Block, Borders, List, ListItem, ListState},
     Frame, Terminal,
 };
 
-fn ui<B: Backend>(f: &mut Frame<B>) {
+fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
     let dashboard = Layout::default()
         .direction(Direction::Horizontal)
         .margin(1)
@@ -37,9 +37,13 @@ fn ui<B: Backend>(f: &mut Frame<B>) {
     f.render_widget(menuinfoboard, menu[0]);
 
     let menuselectboard = Block::default().title("Menu Select").borders(Borders::ALL);
-    let items = [ListItem::new("Circle of fifths")];
-    let list = List::new(items).block(menuselectboard);
-    f.render_widget(list, menu[1]);
+    let items: Vec<ListItem> = menu_state
+        .items
+        .iter()
+        .map(|item| ListItem::new(item.to_string()))
+        .collect();
+    let list = List::new(items).block(menuselectboard).highlight_style(Style::default().fg(Color::Yellow));
+    f.render_stateful_widget(list, menu[1], &mut menu_state.state);
 }
 
 #[derive(Debug)]
@@ -47,6 +51,22 @@ enum InputEvent<I> {
     Input(I),
     Tick,
 }
+
+#[derive(Debug)]
+struct MenuState {
+    items: Vec<String>,
+    state: ListState,
+}
+impl MenuState {
+    fn new(items: Vec<String>) -> Self {
+        Self {
+            items,
+            state: ListState::default(),
+        }
+    }
+    //todo: implement next/previous function to navigate
+}
+
 
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
@@ -72,7 +92,8 @@ fn main() -> Result<(), io::Error> {
         }
     });
 
-    // ui thread 
+    // ui thread
+    let mut menu_state = MenuState::new(vec!["Circle of fifths".to_string(),"Second Staff".to_string()]);
     loop {
         let input_event = rx.recv().unwrap();
         match input_event {
@@ -90,12 +111,19 @@ fn main() -> Result<(), io::Error> {
                     terminal.show_cursor()?;
                     break;
                 }
+                //Todo: implement keyup and down
+                KeyEvent {
+                    code: KeyCode::Down,
+                    modifiers: KeyModifiers::NONE,
+                } => {
+                    menu_state.state.select(Some(1));
+                }
                 _ => {}
             },
             InputEvent::Tick => {}
         }
         terminal.draw(|f| {
-            ui(f);
+            ui(f, &mut menu_state);
         })?;
     }
 
