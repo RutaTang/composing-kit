@@ -14,11 +14,12 @@ use std::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style, self},
+    style::{self, Color, Modifier, Style},
     widgets::{Block, Borders, List, ListItem, ListState},
     Frame, Terminal,
 };
 
+//todo: use BoardState to hightlight the baord
 fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
     let dashboard = Layout::default()
         .direction(Direction::Horizontal)
@@ -42,7 +43,9 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
         .iter()
         .map(|item| ListItem::new(item.to_string()))
         .collect();
-    let list = List::new(items).block(menuselectboard).highlight_style(Style::default().fg(Color::Yellow));
+    let list = List::new(items)
+        .block(menuselectboard)
+        .highlight_style(Style::default().fg(Color::Yellow));
     f.render_stateful_widget(list, menu[1], &mut menu_state.state);
 }
 
@@ -53,20 +56,61 @@ enum InputEvent<I> {
 }
 
 #[derive(Debug)]
+enum Board {
+    Main,
+    MenuInfo,
+    MenuSelect,
+}
+
+#[derive(Debug)]
+struct BoardState {
+    selected: usize,
+    current_board: Board,
+}
+
+#[derive(Debug)]
 struct MenuState {
     items: Vec<String>,
     state: ListState,
 }
 impl MenuState {
-    fn new(items: Vec<String>) -> Self {
+    fn new() -> Self {
         Self {
-            items,
+            items: vec![],
             state: ListState::default(),
         }
     }
-    //todo: implement next/previous function to navigate
+    fn set_items(&mut self, items: Vec<String>) {
+        self.items = items;
+        self.state.select(Some(0));
+    }
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+    fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    0
+                } else {
+                    i - 1
+                }
+            }
+            None => self.items.len() - 1,
+        };
+        self.state.select(Some(i));
+    }
 }
-
 
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
@@ -79,7 +123,7 @@ fn main() -> Result<(), io::Error> {
 
     //Use input event thread to listen key event and send to ui thread
     thread::spawn(move || loop {
-        if (event::poll(Duration::from_millis(200)).unwrap()) {
+        if (event::poll(Duration::from_millis(100)).unwrap()) {
             let ev = event::read().unwrap();
             match ev {
                 Event::Key(key) => {
@@ -93,7 +137,8 @@ fn main() -> Result<(), io::Error> {
     });
 
     // ui thread
-    let mut menu_state = MenuState::new(vec!["Circle of fifths".to_string(),"Second Staff".to_string()]);
+    let mut menu_state = MenuState::new();
+    menu_state.set_items(vec!["Circle of fifth".into()]);
     loop {
         let input_event = rx.recv().unwrap();
         match input_event {
@@ -111,13 +156,19 @@ fn main() -> Result<(), io::Error> {
                     terminal.show_cursor()?;
                     break;
                 }
-                //Todo: implement keyup and down
                 KeyEvent {
                     code: KeyCode::Down,
                     modifiers: KeyModifiers::NONE,
                 } => {
-                    menu_state.state.select(Some(1));
+                    menu_state.next();
                 }
+                KeyEvent {
+                    code: KeyCode::Up,
+                    modifiers: KeyModifiers::NONE,
+                } => {
+                    menu_state.previous();
+                }
+                //todo: navigate board through control Ctrl+u/i/o
                 _ => {}
             },
             InputEvent::Tick => {}
