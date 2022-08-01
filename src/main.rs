@@ -19,8 +19,12 @@ use tui::{
     Frame, Terminal,
 };
 
-//todo: use BoardState to hightlight the baord
-fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
+//todo: show menuinfo when a certain menu item is selcted
+fn ui<B: Backend>(
+    f: &mut Frame<B>,
+    menuselect_state: &mut MenuSelectState,
+    board_state: &mut BoardState,
+) {
     let dashboard = Layout::default()
         .direction(Direction::Horizontal)
         .margin(1)
@@ -32,13 +36,25 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
         .split(dashboard[1]);
 
     let mainboard = Block::default().title("Main Board").borders(Borders::ALL);
+    let mainboard = match board_state.current_board {
+        Board::Main => mainboard.border_style(Style::default().fg(Color::Yellow)),
+        _ => mainboard,
+    };
     f.render_widget(mainboard, dashboard[0]);
 
     let menuinfoboard = Block::default().title("Menu Info").borders(Borders::ALL);
+    let menuinfoboard = match board_state.current_board{
+        Board::MenuInfo => menuinfoboard.border_style(Style::default().fg(Color::Yellow)),
+        _ => menuinfoboard,
+    };
     f.render_widget(menuinfoboard, menu[0]);
 
     let menuselectboard = Block::default().title("Menu Select").borders(Borders::ALL);
-    let items: Vec<ListItem> = menu_state
+    let menuselectboard = match board_state.current_board {
+        Board::MenuSelect => menuselectboard.border_style(Style::default().fg(Color::Yellow)),
+        _ => menuselectboard,
+    };
+    let items: Vec<ListItem> = menuselect_state
         .items
         .iter()
         .map(|item| ListItem::new(item.to_string()))
@@ -46,7 +62,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState) {
     let list = List::new(items)
         .block(menuselectboard)
         .highlight_style(Style::default().fg(Color::Yellow));
-    f.render_stateful_widget(list, menu[1], &mut menu_state.state);
+    f.render_stateful_widget(list, menu[1], &mut menuselect_state.state);
 }
 
 #[derive(Debug)]
@@ -64,16 +80,25 @@ enum Board {
 
 #[derive(Debug)]
 struct BoardState {
-    selected: usize,
     current_board: Board,
+}
+impl BoardState {
+    fn new() -> Self {
+        BoardState {
+            current_board: Board::MenuSelect,
+        }
+    }
+    fn select_board(&mut self, board: Board) {
+        self.current_board = board;
+    }
 }
 
 #[derive(Debug)]
-struct MenuState {
+struct MenuSelectState {
     items: Vec<String>,
     state: ListState,
 }
-impl MenuState {
+impl MenuSelectState {
     fn new() -> Self {
         Self {
             items: vec![],
@@ -137,8 +162,9 @@ fn main() -> Result<(), io::Error> {
     });
 
     // ui thread
-    let mut menu_state = MenuState::new();
-    menu_state.set_items(vec!["Circle of fifth".into()]);
+    let mut board_state = BoardState::new();
+    let mut menuselect_state = MenuSelectState::new();
+    menuselect_state.set_items(vec!["Circle of fifth".into()]);
     loop {
         let input_event = rx.recv().unwrap();
         match input_event {
@@ -160,21 +186,38 @@ fn main() -> Result<(), io::Error> {
                     code: KeyCode::Down,
                     modifiers: KeyModifiers::NONE,
                 } => {
-                    menu_state.next();
+                    menuselect_state.next();
                 }
                 KeyEvent {
                     code: KeyCode::Up,
                     modifiers: KeyModifiers::NONE,
                 } => {
-                    menu_state.previous();
+                    menuselect_state.previous();
                 }
-                //todo: navigate board through control Ctrl+u/i/o
+                KeyEvent {
+                    code: KeyCode::Char('u'),
+                    modifiers: KeyModifiers::NONE,
+                } => {
+                        board_state.select_board(Board::Main);
+                    }
+                KeyEvent {
+                    code: KeyCode::Char('i'),
+                    modifiers: KeyModifiers::NONE,
+                } => {
+                        board_state.select_board(Board::MenuInfo);
+                    }
+                KeyEvent {
+                    code: KeyCode::Char('o'),
+                    modifiers: KeyModifiers::NONE,
+                } => {
+                        board_state.select_board(Board::MenuSelect);
+                    }
                 _ => {}
             },
             InputEvent::Tick => {}
         }
         terminal.draw(|f| {
-            ui(f, &mut menu_state);
+            ui(f, &mut menuselect_state, &mut board_state);
         })?;
     }
 
