@@ -15,16 +15,12 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{self, Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState},
-    Frame, Terminal,
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    Frame, Terminal, text::Text,
 };
 
-//todo: show menuinfo when a certain menu item is selcted
-fn ui<B: Backend>(
-    f: &mut Frame<B>,
-    menuselect_state: &mut MenuSelectState,
-    board_state: &mut BoardState,
-) {
+//Todo: test long text for menu info and then support scrolling
+fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mut BoardState) {
     let dashboard = Layout::default()
         .direction(Direction::Horizontal)
         .margin(1)
@@ -43,18 +39,20 @@ fn ui<B: Backend>(
     f.render_widget(mainboard, dashboard[0]);
 
     let menuinfoboard = Block::default().title("Menu Info").borders(Borders::ALL);
-    let menuinfoboard = match board_state.current_board{
+    let menuinfoboard = match board_state.current_board {
         Board::MenuInfo => menuinfoboard.border_style(Style::default().fg(Color::Yellow)),
         _ => menuinfoboard,
     };
-    f.render_widget(menuinfoboard, menu[0]);
+    let menuinfo_text = Text::raw(menu_state.infos.get(menu_state.state.selected().unwrap()).unwrap());
+    let menuinfo_text = Paragraph::new(menuinfo_text).block(menuinfoboard);
+    f.render_widget(menuinfo_text, menu[0]);
 
     let menuselectboard = Block::default().title("Menu Select").borders(Borders::ALL);
     let menuselectboard = match board_state.current_board {
         Board::MenuSelect => menuselectboard.border_style(Style::default().fg(Color::Yellow)),
         _ => menuselectboard,
     };
-    let items: Vec<ListItem> = menuselect_state
+    let items: Vec<ListItem> = menu_state
         .items
         .iter()
         .map(|item| ListItem::new(item.to_string()))
@@ -62,7 +60,7 @@ fn ui<B: Backend>(
     let list = List::new(items)
         .block(menuselectboard)
         .highlight_style(Style::default().fg(Color::Yellow));
-    f.render_stateful_widget(list, menu[1], &mut menuselect_state.state);
+    f.render_stateful_widget(list, menu[1], &mut menu_state.state);
 }
 
 #[derive(Debug)]
@@ -94,19 +92,23 @@ impl BoardState {
 }
 
 #[derive(Debug)]
-struct MenuSelectState {
+struct MenuState {
     items: Vec<String>,
+    infos: Vec<String>,
     state: ListState,
 }
-impl MenuSelectState {
+impl MenuState {
     fn new() -> Self {
         Self {
             items: vec![],
+            infos: vec![],
             state: ListState::default(),
         }
     }
-    fn set_items(&mut self, items: Vec<String>) {
+    fn set_items(&mut self, items: Vec<String>, infos: Vec<String>) {
+        assert!(items.len() == infos.len(),"shold be same length");
         self.items = items;
+        self.infos = infos;
         self.state.select(Some(0));
     }
     fn next(&mut self) {
@@ -126,12 +128,12 @@ impl MenuSelectState {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    0
+                    self.items.len()-1
                 } else {
                     i - 1
                 }
             }
-            None => self.items.len() - 1,
+            None => 0,
         };
         self.state.select(Some(i));
     }
@@ -163,8 +165,8 @@ fn main() -> Result<(), io::Error> {
 
     // ui thread
     let mut board_state = BoardState::new();
-    let mut menuselect_state = MenuSelectState::new();
-    menuselect_state.set_items(vec!["Circle of fifth".into()]);
+    let mut menu_state = MenuState::new();
+    menu_state.set_items(vec!["Circle of fifth".into(),"Harmonic".into()],vec!["This is a info for COF".into(),"Oh yes, a test text".into()]);
     loop {
         let input_event = rx.recv().unwrap();
         match input_event {
@@ -183,41 +185,41 @@ fn main() -> Result<(), io::Error> {
                     break;
                 }
                 KeyEvent {
-                    code: KeyCode::Down,
+                    code: KeyCode::Down | KeyCode::Char('j'),
                     modifiers: KeyModifiers::NONE,
                 } => {
-                    menuselect_state.next();
+                    menu_state.next();
                 }
                 KeyEvent {
-                    code: KeyCode::Up,
+                    code: KeyCode::Up | KeyCode::Char('k'),
                     modifiers: KeyModifiers::NONE,
                 } => {
-                    menuselect_state.previous();
+                    menu_state.previous();
                 }
                 KeyEvent {
                     code: KeyCode::Char('u'),
                     modifiers: KeyModifiers::NONE,
                 } => {
-                        board_state.select_board(Board::Main);
-                    }
+                    board_state.select_board(Board::Main);
+                }
                 KeyEvent {
                     code: KeyCode::Char('i'),
                     modifiers: KeyModifiers::NONE,
                 } => {
-                        board_state.select_board(Board::MenuInfo);
-                    }
+                    board_state.select_board(Board::MenuInfo);
+                }
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::NONE,
                 } => {
-                        board_state.select_board(Board::MenuSelect);
-                    }
+                    board_state.select_board(Board::MenuSelect);
+                }
                 _ => {}
             },
             InputEvent::Tick => {}
         }
         terminal.draw(|f| {
-            ui(f, &mut menuselect_state, &mut board_state);
+            ui(f, &mut menu_state, &mut board_state);
         })?;
     }
 
