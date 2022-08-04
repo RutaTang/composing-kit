@@ -15,9 +15,9 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{self, Color, Modifier, Style},
-    text::Text,
+    text::{Span, Text},
     widgets::{
-        canvas::{Canvas, Line, Map, MapResolution, Points, Rectangle},
+        canvas::{Canvas, Label, Line, Map, MapResolution, Points, Rectangle},
         Block, Borders, List, ListItem, ListState, Paragraph, Wrap,
     },
     Frame, Terminal,
@@ -45,14 +45,15 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         .x_bounds([-200.0, 200.0])
         .y_bounds([-200.0, 200.0])
         .paint(|ctx| {
-            //todo: draw key note
             ctx.draw(&Points {
                 coords: &[(0.0, 0.0)],
                 color: Color::White,
             });
+            //draw circle
             const RADIUS: u16 = 150;
-            for degree in 0..=360/20 {
-                let degree = (20*degree) as f64;
+            const SEPARATE: u16 = 20;
+            for degree in 0..=360 / SEPARATE {
+                let degree = (SEPARATE * degree) as f64;
                 let degree = degree / 360_f64 * std::f64::consts::PI;
                 let y = degree.sin() * (RADIUS as f64);
                 let x = degree.cos() * (RADIUS as f64);
@@ -61,8 +62,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
                     color: Color::White,
                 })
             }
-            for degree in 0..=360/20 {
-                let degree = (20*degree) as f64;
+            for degree in 0..=360 / SEPARATE {
+                let degree = (SEPARATE * degree) as f64;
                 let degree = degree / 360_f64 * std::f64::consts::PI;
                 let y = degree.sin() * (RADIUS as f64);
                 let x = degree.cos() * (RADIUS as f64);
@@ -71,6 +72,21 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
                     color: Color::White,
                 })
             }
+            //draw keys
+            let x = -25.0;
+            let y = 0.0;
+            ctx.print(x, y, "Circle of fifth".to_string());
+            //draw C
+            let x = 0.0;
+            let y = RADIUS as f64;
+            ctx.print(x, y, "C".to_string());
+            //draw G
+            let degree = 60_f64;
+            let degree = degree / 180_f64 * std::f64::consts::PI;
+            let y = degree.sin() * (RADIUS as f64);
+            let x = degree.cos() * (RADIUS as f64);
+            ctx.print(x, y, "G".to_string());
+            //todo: refactoring to draw other keys
         });
     f.render_widget(mainboard, dashboard[0]);
 
