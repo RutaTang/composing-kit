@@ -16,7 +16,10 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{self, Color, Modifier, Style},
     text::Text,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{
+        canvas::{Canvas, Line, Map, MapResolution, Points, Rectangle},
+        Block, Borders, List, ListItem, ListState, Paragraph, Wrap,
+    },
     Frame, Terminal,
 };
 
@@ -37,6 +40,38 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         Board::Main => mainboard.border_style(Style::default().fg(Color::Yellow)),
         _ => mainboard,
     };
+    let mainboard = Canvas::default()
+        .block(mainboard)
+        .x_bounds([-200.0, 200.0])
+        .y_bounds([-200.0, 200.0])
+        .paint(|ctx| {
+            //todo: draw key note
+            ctx.draw(&Points {
+                coords: &[(0.0, 0.0)],
+                color: Color::White,
+            });
+            const RADIUS: u16 = 150;
+            for degree in 0..=360/20 {
+                let degree = (20*degree) as f64;
+                let degree = degree / 360_f64 * std::f64::consts::PI;
+                let y = degree.sin() * (RADIUS as f64);
+                let x = degree.cos() * (RADIUS as f64);
+                ctx.draw(&Points {
+                    coords: &[(x, y)],
+                    color: Color::White,
+                })
+            }
+            for degree in 0..=360/20 {
+                let degree = (20*degree) as f64;
+                let degree = degree / 360_f64 * std::f64::consts::PI;
+                let y = degree.sin() * (RADIUS as f64);
+                let x = degree.cos() * (RADIUS as f64);
+                ctx.draw(&Points {
+                    coords: &[(-x, -y)],
+                    color: Color::White,
+                })
+            }
+        });
     f.render_widget(mainboard, dashboard[0]);
 
     let menuinfoboard = Block::default().title("Menu Info").borders(Borders::ALL);
