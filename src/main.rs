@@ -18,31 +18,14 @@ use tui::{
     text::{Span, Text},
     widgets::{
         canvas::{Canvas, Context, Label, Line, Map, MapResolution, Points, Rectangle},
-        Block, Borders, List, ListItem, ListState, Paragraph, Wrap, Widget,
+        Block, Borders, List, ListItem, ListState, Paragraph, Widget, Wrap,
     },
     Frame, Terminal,
 };
 
-//todo:refactoring CircleOfFifths to a widget
-//todo: draw rthtmic elements, like: note, half note and more
-fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mut BoardState) {
-    let dashboard = Layout::default()
-        .direction(Direction::Horizontal)
-        .margin(1)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)].as_ref())
-        .split(f.size());
-    let menu = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-        .split(dashboard[1]);
-
-    let mainboard = Block::default().title("Main Board").borders(Borders::ALL);
-    let mainboard = match board_state.current_board {
-        Board::Main => mainboard.border_style(Style::default().fg(Color::Yellow)),
-        _ => mainboard,
-    };
-    let mainboard = Canvas::default()
-        .block(mainboard)
+//return a customizable canvas with cof drawn
+fn draw_circle_of_fifths<'a>() -> Canvas<'a, impl Fn(&mut Context)> {
+    Canvas::default()
         .x_bounds([-200.0, 200.0])
         .y_bounds([-200.0, 200.0])
         .paint(|ctx| {
@@ -62,7 +45,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
                     let y = degree.sin() * (radius as f64);
                     let x = degree.cos() * (radius as f64) - key_len / 2.0;
                     let style = Style::default().fg(color);
-                    let text = Span::styled(key.to_string(),style);
+                    let text = Span::styled(key.to_string(), style);
                     ctx.print(x, y, text);
                 };
             //draw major keys
@@ -143,7 +126,28 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
             draw_key(ctx, ACCIDENTAL_RADIUS, degree, "4b", color);
             let degree = -180_f64;
             draw_key(ctx, ACCIDENTAL_RADIUS, degree, "3b", color);
-        });
+        })
+}
+
+//todo: add sounds
+//todo: draw rthtmic elements, like: note, half note and more
+fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mut BoardState) {
+    let dashboard = Layout::default()
+        .direction(Direction::Horizontal)
+        .margin(1)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)].as_ref())
+        .split(f.size());
+    let menu = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
+        .split(dashboard[1]);
+
+    let mainboard = Block::default().title("Main Board").borders(Borders::ALL);
+    let mainboard = match board_state.current_board {
+        Board::Main => mainboard.border_style(Style::default().fg(Color::Yellow)),
+        _ => mainboard,
+    };
+    let mainboard = draw_circle_of_fifths().block(mainboard);
     f.render_widget(mainboard, dashboard[0]);
 
     let menuinfoboard = Block::default().title("Menu Info").borders(Borders::ALL);
