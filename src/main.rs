@@ -18,12 +18,12 @@ use tui::{
     text::{Span, Text},
     widgets::{
         canvas::{Canvas, Context, Label, Line, Map, MapResolution, Points, Rectangle},
-        Block, Borders, List, ListItem, ListState, Paragraph, Wrap,
+        Block, Borders, List, ListItem, ListState, Paragraph, Wrap, Widget,
     },
     Frame, Terminal,
 };
 
-//todo: draw circle of fifth graph
+//todo:refactoring CircleOfFifths to a widget
 //todo: draw rthtmic elements, like: note, half note and more
 fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mut BoardState) {
     let dashboard = Layout::default()
@@ -46,6 +46,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         .x_bounds([-200.0, 200.0])
         .y_bounds([-200.0, 200.0])
         .paint(|ctx| {
+            //Circle Radius for different circle
             const MAJOR_RADIUS: u16 = 180;
             const MINOR_RADIUS: u16 = 140;
             const ACCIDENTAL_RADIUS: u16 = 160;
@@ -54,89 +55,94 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
             let y = 0.0;
             ctx.print(x, y, "Circle of fifth".to_string());
             //draw keys
-            //todo: enable changing color of keys
-            let draw_key = |ctx: &mut Context, radius: u16, degree: f64, key: &str| {
-                let key_len = key.len() as f64;
-                let degree = degree / 180_f64 * std::f64::consts::PI;
-                let y = degree.sin() * (radius as f64);
-                let x = degree.cos() * (radius as f64) - key_len/2.0;
-                ctx.print(x, y, key.to_string());
-            };
+            let draw_key =
+                |ctx: &mut Context, radius: u16, degree: f64, key: &str, color: Color| {
+                    let key_len = key.len() as f64;
+                    let degree = degree / 180_f64 * std::f64::consts::PI;
+                    let y = degree.sin() * (radius as f64);
+                    let x = degree.cos() * (radius as f64) - key_len / 2.0;
+                    let style = Style::default().fg(color);
+                    let text = Span::styled(key.to_string(),style);
+                    ctx.print(x, y, text);
+                };
             //draw major keys
+            let color = Color::Red;
             let degree = 150_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "Bb");
+            draw_key(ctx, MAJOR_RADIUS, degree, "Bb", color);
             let degree = 120_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "F");
+            draw_key(ctx, MAJOR_RADIUS, degree, "F", color);
             let degree = 90_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "C");
+            draw_key(ctx, MAJOR_RADIUS, degree, "C", color);
             let degree = 60_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "G");
+            draw_key(ctx, MAJOR_RADIUS, degree, "G", color);
             let degree = 30_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "D");
+            draw_key(ctx, MAJOR_RADIUS, degree, "D", color);
             let degree = 0_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "A");
+            draw_key(ctx, MAJOR_RADIUS, degree, "A", color);
             let degree = -30_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "E");
+            draw_key(ctx, MAJOR_RADIUS, degree, "E", color);
             let degree = -60_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "B");
+            draw_key(ctx, MAJOR_RADIUS, degree, "B", color);
             let degree = -90_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "Gb/F#");
+            draw_key(ctx, MAJOR_RADIUS, degree, "Gb/F#", color);
             let degree = -120_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "Db");
+            draw_key(ctx, MAJOR_RADIUS, degree, "Db", color);
             let degree = -150_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "Ab");
+            draw_key(ctx, MAJOR_RADIUS, degree, "Ab", color);
             let degree = -180_f64;
-            draw_key(ctx, MAJOR_RADIUS, degree, "Eb");
+            draw_key(ctx, MAJOR_RADIUS, degree, "Eb", color);
             //draw minor keys
+            let color = Color::Blue;
             let degree = 150_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "g");
+            draw_key(ctx, MINOR_RADIUS, degree, "g", color);
             let degree = 120_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "d");
+            draw_key(ctx, MINOR_RADIUS, degree, "d", color);
             let degree = 90_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "a");
+            draw_key(ctx, MINOR_RADIUS, degree, "a", color);
             let degree = 60_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "e");
+            draw_key(ctx, MINOR_RADIUS, degree, "e", color);
             let degree = 30_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "b");
+            draw_key(ctx, MINOR_RADIUS, degree, "b", color);
             let degree = 0_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "f#");
+            draw_key(ctx, MINOR_RADIUS, degree, "f#", color);
             let degree = -30_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "c#");
+            draw_key(ctx, MINOR_RADIUS, degree, "c#", color);
             let degree = -60_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "g#");
+            draw_key(ctx, MINOR_RADIUS, degree, "g#", color);
             let degree = -90_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "eb/d#");
+            draw_key(ctx, MINOR_RADIUS, degree, "eb/d#", color);
             let degree = -120_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "bb");
+            draw_key(ctx, MINOR_RADIUS, degree, "bb", color);
             let degree = -150_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "f");
+            draw_key(ctx, MINOR_RADIUS, degree, "f", color);
             let degree = -180_f64;
-            draw_key(ctx, MINOR_RADIUS, degree, "c");
+            draw_key(ctx, MINOR_RADIUS, degree, "c", color);
             //draw accidentals
+            let color = Color::LightYellow;
             let degree = 150_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "2b");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "2b", color);
             let degree = 120_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "1b");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "1b", color);
             let degree = 90_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "0");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "0", color);
             let degree = 60_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "1#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "1#", color);
             let degree = 30_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "2#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "2#", color);
             let degree = 0_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "3#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "3#", color);
             let degree = -30_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "4#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "4#", color);
             let degree = -60_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "5#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "5#", color);
             let degree = -90_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "6b/6#");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "6b/6#", color);
             let degree = -120_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "5b");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "5b", color);
             let degree = -150_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "4b");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "4b", color);
             let degree = -180_f64;
-            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "3b");
+            draw_key(ctx, ACCIDENTAL_RADIUS, degree, "3b", color);
         });
     f.render_widget(mainboard, dashboard[0]);
 
