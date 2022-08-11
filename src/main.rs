@@ -157,7 +157,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         _ => menu_info_board,
     };
     let selected_idx = menu_state.state.selected().unwrap();
-    let menu_info_text = Text::raw(menu_state.infos.get(selected_idx).unwrap());
+    let menu_info_text = Text::raw(menu_state.menu_infos.get(selected_idx).unwrap());
     let menu_info_text = Paragraph::new(menu_info_text)
         .block(menu_info_board)
         .scroll((menu_state.info_scrolls[selected_idx], 0))
@@ -170,7 +170,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         _ => menu_select_block,
     };
     let items: Vec<ListItem> = menu_state
-        .items
+        .menu_items
         .iter()
         .map(|item| ListItem::new(item.to_string()))
         .collect();
@@ -210,31 +210,31 @@ impl BoardState {
 
 #[derive(Debug)]
 struct MenuState {
-    items: Vec<String>,
-    infos: Vec<String>,
+    menu_items: Vec<String>,
+    menu_infos: Vec<String>,
     info_scrolls: Vec<u16>,
     state: ListState,
 }
 impl MenuState {
     fn new() -> Self {
         Self {
-            items: vec![],
-            infos: vec![],
+            menu_items: vec![],
+            menu_infos: vec![],
             state: ListState::default(),
             info_scrolls: vec![],
         }
     }
     fn set_items(&mut self, items: Vec<String>, infos: Vec<String>) {
         assert!(items.len() == infos.len(), "shold be same length");
-        self.items = items;
-        self.infos = infos;
-        self.info_scrolls = vec![0; self.infos.len()];
+        self.menu_items = items;
+        self.menu_infos = infos;
+        self.info_scrolls = vec![0; self.menu_infos.len()];
         self.state.select(Some(0));
     }
     fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.items.len() - 1 {
+                if i >= self.menu_items.len() - 1 {
                     0
                 } else {
                     i + 1
@@ -248,7 +248,7 @@ impl MenuState {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    self.menu_items.len() - 1
                 } else {
                     i - 1
                 }
