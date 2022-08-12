@@ -129,9 +129,8 @@ fn draw_circle_of_fifths<'a>() -> Canvas<'a, impl Fn(&mut Context)> {
         })
 }
 
-//todo: show corresponding main item according to selected item
 //todo: draw rthtmic elements, like: note, half note and more
-fn getBoards<B: Backend>(f: &mut Frame<B>) -> (Rect, Rect, Rect) {
+fn get_boards<B: Backend>(f: &mut Frame<B>) -> (Rect, Rect, Rect) {
     let boards = Layout::default()
         .direction(Direction::Horizontal)
         .margin(1)
@@ -143,7 +142,7 @@ fn getBoards<B: Backend>(f: &mut Frame<B>) -> (Rect, Rect, Rect) {
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
         .split(boards[1]);
 
-    return (boards[0], menu_boards[0], menu_boards[1]);
+    (boards[0], menu_boards[0], menu_boards[1])
 }
 
 #[derive(Debug)]
@@ -321,7 +320,9 @@ fn main() -> Result<(), io::Error> {
             InputEvent::Tick => {}
         }
         terminal.draw(|f| {
-            let (main_board, menu_info_board, menu_list_board) = getBoards(f);
+            let (main_board, menu_info_board, menu_list_board) = get_boards(f);
+
+            let selected_item_idx = menu_state.state.selected().unwrap();
 
             // draw main board
             let main_board_block = Block::default().title("Main Board").borders(Borders::ALL);
@@ -329,8 +330,19 @@ fn main() -> Result<(), io::Error> {
                 Board::Main => main_board_block.border_style(Style::default().fg(Color::Yellow)),
                 _ => main_board_block,
             };
-            let main_board_content = draw_circle_of_fifths().block(main_board_block);
-            f.render_widget(main_board_content, main_board);
+            match selected_item_idx {
+                0 => {
+                    let main_board_content = draw_circle_of_fifths().block(main_board_block);
+                    f.render_widget(main_board_content, main_board);
+                }
+                1 => {
+                    let main_board_content = Paragraph::new("Hoarmonic").block(main_board_block);
+                    f.render_widget(main_board_content, main_board);
+                }
+                _ => {
+                    f.render_widget(main_board_block, main_board);
+                }
+            };
 
             // draw menu info board
             let menu_info_block = Block::default().title("Menu Info").borders(Borders::ALL);
@@ -338,18 +350,19 @@ fn main() -> Result<(), io::Error> {
                 Board::MenuInfo => menu_info_block.border_style(Style::default().fg(Color::Yellow)),
                 _ => menu_info_block,
             };
-            let selected_idx = menu_state.state.selected().unwrap();
-            let menu_info_text = Text::raw(menu_state.menu_infos.get(selected_idx).unwrap());
+            let menu_info_text = Text::raw(menu_state.menu_infos.get(selected_item_idx).unwrap());
             let menu_info_text = Paragraph::new(menu_info_text)
                 .block(menu_info_block)
-                .scroll((menu_state.info_scrolls[selected_idx], 0))
+                .scroll((menu_state.info_scrolls[selected_item_idx], 0))
                 .wrap(Wrap { trim: true });
             f.render_widget(menu_info_text, menu_info_board);
 
             // draw menu list board
             let menu_list_block = Block::default().title("Menu Select").borders(Borders::ALL);
             let menu_list_block = match board_state.current_board {
-                Board::MenuSelect => menu_list_block.border_style(Style::default().fg(Color::Yellow)),
+                Board::MenuSelect => {
+                    menu_list_block.border_style(Style::default().fg(Color::Yellow))
+                }
                 _ => menu_list_block,
             };
             let items: Vec<ListItem> = menu_state
