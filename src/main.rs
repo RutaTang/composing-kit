@@ -13,7 +13,7 @@ use std::{
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{self, Color, Modifier, Style},
     text::{Span, Text},
     widgets::{
@@ -131,7 +131,7 @@ fn draw_circle_of_fifths<'a>() -> Canvas<'a, impl Fn(&mut Context)> {
 
 //todo: show corresponding main item according to selected item
 //todo: draw rthtmic elements, like: note, half note and more
-fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mut BoardState) {
+fn getBoards<B: Backend>(f: &mut Frame<B>) -> (Rect, Rect, Rect) {
     let boards = Layout::default()
         .direction(Direction::Horizontal)
         .margin(1)
@@ -143,41 +143,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, menu_state: &mut MenuState, board_state: &mu
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
         .split(boards[1]);
 
-    let main_board_block = Block::default().title("Main Board").borders(Borders::ALL);
-    let main_board_block = match board_state.current_board {
-        Board::Main => main_board_block.border_style(Style::default().fg(Color::Yellow)),
-        _ => main_board_block,
-    };
-    let main_board_content = draw_circle_of_fifths().block(main_board_block);
-    f.render_widget(main_board_content, boards[0]);
-
-    let menu_info_board = Block::default().title("Menu Info").borders(Borders::ALL);
-    let menu_info_board = match board_state.current_board {
-        Board::MenuInfo => menu_info_board.border_style(Style::default().fg(Color::Yellow)),
-        _ => menu_info_board,
-    };
-    let selected_idx = menu_state.state.selected().unwrap();
-    let menu_info_text = Text::raw(menu_state.menu_infos.get(selected_idx).unwrap());
-    let menu_info_text = Paragraph::new(menu_info_text)
-        .block(menu_info_board)
-        .scroll((menu_state.info_scrolls[selected_idx], 0))
-        .wrap(Wrap { trim: true });
-    f.render_widget(menu_info_text, menu_boards[0]);
-
-    let menu_select_block = Block::default().title("Menu Select").borders(Borders::ALL);
-    let menu_select_block = match board_state.current_board {
-        Board::MenuSelect => menu_select_block.border_style(Style::default().fg(Color::Yellow)),
-        _ => menu_select_block,
-    };
-    let items: Vec<ListItem> = menu_state
-        .menu_items
-        .iter()
-        .map(|item| ListItem::new(item.to_string()))
-        .collect();
-    let list = List::new(items)
-        .block(menu_select_block)
-        .highlight_style(Style::default().fg(Color::Yellow));
-    f.render_stateful_widget(list, menu_boards[1], &mut menu_state.state);
+    return (boards[0], menu_boards[0], menu_boards[1]);
 }
 
 #[derive(Debug)]
@@ -355,7 +321,46 @@ fn main() -> Result<(), io::Error> {
             InputEvent::Tick => {}
         }
         terminal.draw(|f| {
-            ui(f, &mut menu_state, &mut board_state);
+            let (main_board, menu_info_board, menu_list_board) = getBoards(f);
+
+            // draw main board
+            let main_board_block = Block::default().title("Main Board").borders(Borders::ALL);
+            let main_board_block = match board_state.current_board {
+                Board::Main => main_board_block.border_style(Style::default().fg(Color::Yellow)),
+                _ => main_board_block,
+            };
+            let main_board_content = draw_circle_of_fifths().block(main_board_block);
+            f.render_widget(main_board_content, main_board);
+
+            // draw menu info board
+            let menu_info_block = Block::default().title("Menu Info").borders(Borders::ALL);
+            let menu_info_block = match board_state.current_board {
+                Board::MenuInfo => menu_info_block.border_style(Style::default().fg(Color::Yellow)),
+                _ => menu_info_block,
+            };
+            let selected_idx = menu_state.state.selected().unwrap();
+            let menu_info_text = Text::raw(menu_state.menu_infos.get(selected_idx).unwrap());
+            let menu_info_text = Paragraph::new(menu_info_text)
+                .block(menu_info_block)
+                .scroll((menu_state.info_scrolls[selected_idx], 0))
+                .wrap(Wrap { trim: true });
+            f.render_widget(menu_info_text, menu_info_board);
+
+            // draw menu list board
+            let menu_list_block = Block::default().title("Menu Select").borders(Borders::ALL);
+            let menu_list_block = match board_state.current_board {
+                Board::MenuSelect => menu_list_block.border_style(Style::default().fg(Color::Yellow)),
+                _ => menu_list_block,
+            };
+            let items: Vec<ListItem> = menu_state
+                .menu_items
+                .iter()
+                .map(|item| ListItem::new(item.to_string()))
+                .collect();
+            let list = List::new(items)
+                .block(menu_list_block)
+                .highlight_style(Style::default().fg(Color::Yellow));
+            f.render_stateful_widget(list, menu_list_board, &mut menu_state.state);
         })?;
     }
 
